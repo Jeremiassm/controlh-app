@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     const mainContent = document.getElementById('main-content');
     const sidebar = document.querySelector('.sidebar');
-    // Referencia a la modal de Bootstrap
+    // Referencia a la modal de Bootstrap (la seguiremos usando en la vista de escritorio)
     const dayTasksModal = new bootstrap.Modal(document.getElementById('day-tasks-modal'));
 
     const categorias = ["Sala", "Materiales", "Cultivos", "Interconsulta", "Alta", "RX", "Laboratorio", "TNM", "POI", "PreQX", "CxHOY", "Otro"];
@@ -9,8 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- NAVEGACIÓN ---
     sidebar.addEventListener('click', (e) => {
         if (e.target.tagName === 'BUTTON') {
-            const view = e.target.dataset.view;
-            renderView(view);
+            renderView(e.target.dataset.view);
         }
         if (e.target.tagName === 'H1') {
             renderView('calendario');
@@ -27,56 +26,58 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- VISTAS ---
+    // --- LÓGICA DE LAS VISTAS ---
 
-   // **** REEMPLAZA ESTA FUNCIÓN EN app.js ****
     function renderCalendarioView() {
         mainContent.innerHTML = '<h2>Calendario General</h2><div id="calendar"></div>';
         const calendarEl = document.getElementById('calendar');
-
-        // ---- Lógica para el calendario responsivo ----
         const isMobile = window.innerWidth < 768;
 
         const calendar = new FullCalendar.Calendar(calendarEl, {
-            // Opciones condicionales basadas en el tamaño de la pantalla
-            initialView: isMobile ? 'listWeek' : 'dayGridMonth', // ¡Vista de lista en móvil!
-            headerToolbar: isMobile ? {
-                left: 'prev,next',
-                center: 'title',
-                right: 'today'
-            } : {
+            initialView: isMobile ? 'listWeek' : 'dayGridMonth',
+            locale: 'es',
+            headerToolbar: {
                 left: 'prev,next today',
                 center: 'title',
-                right: 'dayGridMonth,timeGridWeek'
+                right: isMobile ? 'listWeek,listDay' : 'dayGridMonth,timeGridWeek' // Vistas para mobile
             },
-            // ---------------------------------------------
-            
-            locale: 'es',
             events: '/api/tareas/all',
             
-            dateClick: async function(info) {
-                const modalTitle = document.getElementById('modal-title');
-                const modalBody = document.getElementById('modal-body');
-
-                modalTitle.textContent = `Tareas del ${info.dateStr}`;
-                modalBody.innerHTML = 'Cargando...';
-                dayTasksModal.show();
-
-                const response = await fetch('/api/tareas/all');
-                const { data: allTasks } = await response.json();
-                
-                const tasksOfDay = allTasks.filter(task => task.fecha_creacion.startsWith(info.dateStr));
-
-                if (tasksOfDay.length > 0) {
-                    modalBody.innerHTML = '<ul class="list-group">' + tasksOfDay.map(task => 
-                        `<li class="list-group-item"><strong>${task.descripcion}</strong><br><small>Paciente: ${task.paciente_nombre || 'N/A'} | Estado: ${task.estado}</small></li>`
-                    ).join('') + '</ul>';
+            // **** LÓGICA MEJORADA PARA EL CLIC ****
+            dateClick: function(info) {
+                if (isMobile) {
+                    // En móvil, cambiamos la vista a la de ese día específico
+                    calendar.changeView('listDay', info.dateStr);
                 } else {
-                    modalBody.innerHTML = '<p>No se cargaron tareas en esta fecha.</p>';
+                    // En escritorio, usamos la ventana modal que ya funcionaba
+                    openDayTasksModal(info.dateStr);
                 }
             }
         });
         calendar.render();
+    }
+
+    // Función para abrir la modal (solo para la vista de escritorio)
+    async function openDayTasksModal(dateStr) {
+        const modalTitle = document.getElementById('modal-title');
+        const modalBody = document.getElementById('modal-body');
+
+        modalTitle.textContent = `Tareas del ${dateStr}`;
+        modalBody.innerHTML = 'Cargando...';
+        dayTasksModal.show();
+
+        const response = await fetch('/api/tareas/all');
+        const { data: allTasks } = await response.json();
+        
+        const tasksOfDay = allTasks.filter(task => task.fecha_creacion.startsWith(dateStr));
+
+        if (tasksOfDay.length > 0) {
+            modalBody.innerHTML = '<ul class="list-group">' + tasksOfDay.map(task => 
+                `<li class="list-group-item"><strong>${task.descripcion}</strong><br><small>Paciente: ${task.paciente_nombre || 'N/A'} | Estado: ${task.estado}</small></li>`
+            ).join('') + '</ul>';
+        } else {
+            modalBody.innerHTML = '<p>No se cargaron tareas en esta fecha.</p>';
+        }
     }
 
     async function renderPacientesView() {
@@ -204,5 +205,5 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- VISTA INICIAL ---
-    renderCalendarioView();
+    renderView('calendario');
 });
