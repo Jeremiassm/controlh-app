@@ -1,8 +1,10 @@
 document.addEventListener('DOMContentLoaded', () => {
     const mainContent = document.getElementById('main-content');
     const sidebar = document.querySelector('.sidebar');
-    // Referencia a la modal de Bootstrap (la seguiremos usando en la vista de escritorio)
     const dayTasksModal = new bootstrap.Modal(document.getElementById('day-tasks-modal'));
+
+    // **** CAMBIO 1: Declaramos la variable del calendario aquí arriba ****
+    let calendar = null; 
 
     const categorias = ["Sala", "Materiales", "Cultivos", "Interconsulta", "Alta", "RX", "Laboratorio", "TNM", "POI", "PreQX", "CxHOY", "Otro"];
 
@@ -26,30 +28,41 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- LÓGICA DE LAS VISTAS ---
+    // --- VISTAS ---
 
     function renderCalendarioView() {
         mainContent.innerHTML = '<h2>Calendario General</h2><div id="calendar"></div>';
         const calendarEl = document.getElementById('calendar');
         const isMobile = window.innerWidth < 768;
 
-        const calendar = new FullCalendar.Calendar(calendarEl, {
+        // **** CAMBIO 2: Destruimos la instancia anterior del calendario si existe ****
+        if (calendar) {
+            calendar.destroy();
+        }
+
+        // Creamos la nueva instancia y la asignamos a nuestra variable
+        calendar = new FullCalendar.Calendar(calendarEl, {
             initialView: isMobile ? 'listWeek' : 'dayGridMonth',
             locale: 'es',
             headerToolbar: {
                 left: 'prev,next today',
                 center: 'title',
-                right: isMobile ? 'listWeek,listDay' : 'dayGridMonth,timeGridWeek' // Vistas para mobile
+                right: isMobile ? 'listWeek,listDay' : 'dayGridMonth,timeGridWeek'
+            },
+            // **** CAMBIO 3: Asignamos texto explícito a los botones ****
+            buttonText: {
+                today:    'Hoy',
+                month:    'Mes',
+                week:     'Semana',
+                day:      'Día',
+                listWeek: 'Semana', // Para que el botón de la vista de lista se llame "Semana"
+                listDay:  'Día'     // Y este se llame "Día"
             },
             events: '/api/tareas/all',
-            
-            // **** LÓGICA MEJORADA PARA EL CLIC ****
             dateClick: function(info) {
                 if (isMobile) {
-                    // En móvil, cambiamos la vista a la de ese día específico
                     calendar.changeView('listDay', info.dateStr);
                 } else {
-                    // En escritorio, usamos la ventana modal que ya funcionaba
                     openDayTasksModal(info.dateStr);
                 }
             }
@@ -57,7 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
         calendar.render();
     }
 
-    // Función para abrir la modal (solo para la vista de escritorio)
+    // El resto de las funciones no necesitan cambios
     async function openDayTasksModal(dateStr) {
         const modalTitle = document.getElementById('modal-title');
         const modalBody = document.getElementById('modal-body');
@@ -68,9 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const response = await fetch('/api/tareas/all');
         const { data: allTasks } = await response.json();
-        
         const tasksOfDay = allTasks.filter(task => task.fecha_creacion.startsWith(dateStr));
-
         if (tasksOfDay.length > 0) {
             modalBody.innerHTML = '<ul class="list-group">' + tasksOfDay.map(task => 
                 `<li class="list-group-item"><strong>${task.descripcion}</strong><br><small>Paciente: ${task.paciente_nombre || 'N/A'} | Estado: ${task.estado}</small></li>`
@@ -148,7 +159,6 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
     }
 
-    // --- MANEJO DE EVENTOS ---
     mainContent.addEventListener('click', async (e) => {
         const target = e.target;
         if (target.matches('.edit-btn')) renderView('editarPaciente', { id: target.dataset.id });
@@ -204,6 +214,5 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- VISTA INICIAL ---
     renderView('calendario');
 });
