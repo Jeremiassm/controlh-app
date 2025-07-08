@@ -2,29 +2,26 @@
 // === CONTROLH SERVER.JS - VERSIÓN COMPLETA Y CORREGIDA PARA RENDER ===
 // ==================================================================
 
-// 1. IMPORTACIONES
 const express = require('express');
 const path = require('path');
 const { Pool } = require('pg');
 const basicAuth = require('express-basic-auth');
 
-// 2. CONFIGURACIÓN INICIAL
 const app = express();
-const PORT = process.env.PORT || 3001; // Render asigna el puerto aquí
+const PORT = process.env.PORT || 3001;
 
-// 3. CONEXIÓN A LA BASE DE DATOS DE POSTGRESQL EN RENDER
+// === Conexión a PostgreSQL en Render ===
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: {
-        rejectUnauthorized: false // Requerido para las conexiones de Render
+        rejectUnauthorized: false
     }
 });
 
-// 4. FUNCIÓN PARA CREAR LAS TABLAS (SINTAXIS SQL CORREGIDA)
+// === Crear tablas si no existen ===
 const createTables = async () => {
     const client = await pool.connect();
     try {
-        // Tabla de pacientes
         await client.query(`
             CREATE TABLE IF NOT EXISTS pacientes (
                 id SERIAL PRIMARY KEY,
@@ -32,7 +29,6 @@ const createTables = async () => {
                 habitacion VARCHAR(50)
             );
         `);
-        // Tabla de tareas
         await client.query(`
             CREATE TABLE IF NOT EXISTS tareas (
                 id SERIAL PRIMARY KEY,
@@ -43,43 +39,34 @@ const createTables = async () => {
                 fecha_creacion TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
             );
         `);
-        console.log("Tablas 'pacientes' y 'tareas' verificadas correctamente en PostgreSQL.");
+        console.log("✔ Tablas creadas/verificadas");
     } catch (err) {
-        console.error("Error crítico al crear/verificar las tablas:", err);
+        console.error("❌ Error al crear tablas:", err);
     } finally {
         client.release();
     }
 };
 
-// 5. MIDDLEWARES (ORDEN CORRECTO Y ESENCIAL)
-
-// Middleware para parsear el cuerpo de las peticiones a JSON.
-// DEBE ir ANTES de las rutas de la API.
+// === Middlewares ===
 app.use(express.json());
 
-// Sirve los archivos estáticos (index.html, style.css, app.js) desde el directorio raíz.
-// Tu index.html está en la raíz, no en una carpeta 'public'.
-app.use(express.static(path.join(__dirname)));
+// ✅ Solo esta línea para servir el front:
+app.use(express.static(path.join(__dirname, 'public')));
 
-// Middleware de Autenticación BÁSICA para PROTEGER TODAS LAS RUTAS /api.
-// Se aplica solo a las rutas que empiezan con /api.
+// ✅ Autenticación para las rutas de API
 app.use('/api', basicAuth({
     authorizer: (username, password) => {
         const envUser = process.env.ADMIN_USERNAME || 'admin';
         const envPass = process.env.ADMIN_PASSWORD || 'password';
-        // Comparación segura para evitar ataques de temporización
         return basicAuth.safeCompare(username, envUser) && basicAuth.safeCompare(password, envPass);
     },
-    challenge: true, // Muestra el popup de login si no se está autenticado
+    challenge: true,
     realm: 'ControlHAppRealm',
 }));
 
-app.use(express.static(path.join(__dirname, 'public')));
+// === Rutas de la API ===
 
-
-// 6. RUTAS COMPLETAS DE LA API (según tu app.js)
-
-// --- RUTAS DE PACIENTES ---
+// PACIENTES
 app.get('/api/pacientes', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM pacientes ORDER BY nombre ASC');
@@ -133,8 +120,7 @@ app.delete('/api/pacientes/:id', async (req, res) => {
     }
 });
 
-
-// --- RUTAS DE TAREAS ---
+// TAREAS
 app.get('/api/tareas/all', async (req, res) => {
     try {
         const result = await pool.query(`
@@ -164,7 +150,6 @@ app.get('/api/tareas/categoria/:categoria', async (req, res) => {
     }
 });
 
-
 app.post('/api/tareas', async (req, res) => {
     const { descripcion, categoria, paciente_id } = req.body;
     try {
@@ -190,16 +175,13 @@ app.put('/api/tareas/:id/estado', async (req, res) => {
     }
 });
 
-// 7. MANEJADOR "CATCH-ALL" (Debe ir al final)
-// Si ninguna ruta de la API coincide, envía el index.html principal.
+// ✅ Ruta final para SPA (Single Page App)
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
-
 });
 
-// 8. INICIAR SERVIDOR Y CREAR TABLAS
+// === Iniciar servidor ===
 app.listen(PORT, () => {
-    console.log(`Servidor de ControlH corriendo en el puerto ${PORT}`);
-    // Llama a la función para asegurar que las tablas existan al arrancar.
+    console.log(`Servidor corriendo en puerto ${PORT}`);
     createTables();
 });
