@@ -74,6 +74,8 @@ app.use('/api', basicAuth({
     realm: 'ControlHAppRealm',
 }));
 
+app.use(express.static(path.join(__dirname, 'public')));
+
 
 // 6. RUTAS COMPLETAS DE LA API (según tu app.js)
 
@@ -191,7 +193,8 @@ app.put('/api/tareas/:id/estado', async (req, res) => {
 // 7. MANEJADOR "CATCH-ALL" (Debe ir al final)
 // Si ninguna ruta de la API coincide, envía el index.html principal.
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+
 });
 
 // 8. INICIAR SERVIDOR Y CREAR TABLAS
