@@ -233,7 +233,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <small>Habitación: ${p.habitacion || 'Sin asignar'}</small>
                     </div>
                 </div>
-                `).join('')}
+                `).join('') }
             </div>
         `;
     }
