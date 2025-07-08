@@ -1,67 +1,88 @@
+// ==================================================================
+// === CONTROLH APP.JS - VERSIÓN ESTABLE Y DEFINITIVA ===
+// ==================================================================
+
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("ControlH vDefinitiva-FINAL cargado.");
+    console.log("ControlH vDefinitiva cargado y listo.");
 
     // --- ELEMENTOS PRINCIPALES DEL DOM ---
     const mainContent = document.getElementById('main-content');
-    const homeLink = document.getElementById('home-title');
-    const navButtonsContainer = document.querySelector('.row.g-3');
+    const homeTitle = document.getElementById('home-title');
+    const navButtons = document.querySelectorAll('[data-view]');
     const dayTasksModal = new bootstrap.Modal(document.getElementById('day-tasks-modal'));
-    let calendar = null;
+    
+    let calendar = null; // Variable para manejar la instancia del calendario
     const categorias = ["Sala", "Materiales", "Cultivos", "Interconsulta", "Alta", "Rx", "Laboratorio", "TNM", "POI", "PreQx", "CxHoy"];
 
     // --- NAVEGACIÓN Y ROUTING ---
     const renderView = (viewName, params = {}) => {
         if (calendar) {
-            calendar.destroy();
+            calendar.destroy(); // Siempre destruye el calendario al cambiar de vista para evitar errores
             calendar = null;
         }
-        mainContent.innerHTML = '';
+        mainContent.innerHTML = ''; // Limpia la vista anterior
+
         switch (viewName) {
             case 'pendientes': renderTareasPendientes(); break;
             case 'tareas': renderTareaForm(); break;
             case 'pacientes': renderPacientesView(); break;
             case 'editarPaciente': renderPacienteForm(params.id); break;
+            case 'categorias': renderCategorias(); break;
             case 'calendario': renderCalendar(); break;
-            default: renderCalendar();
+            default: renderCalendar(); // La vista por defecto es el calendario
         }
     };
 
-    // --- MANEJADORES DE EVENTOS ---
-    homeLink.addEventListener('click', (e) => { e.preventDefault(); renderView('calendario'); });
-    navButtonsContainer.addEventListener('click', (e) => {
-        if (e.target.matches('[data-view]')) {
-            e.preventDefault();
-            renderView(e.target.dataset.view);
-        }
-    });
+    // Navegación principal (botones y título)
+    navButtons.forEach(button => button.addEventListener('click', () => renderView(button.dataset.view)));
+    homeTitle.addEventListener('click', () => renderView('calendario'));
 
+
+    // --- MANEJADOR DE EVENTOS GLOBAL Y ÚNICO ---
+    // Un solo listener para todas las acciones de clic dentro del área principal
     mainContent.addEventListener('click', async (e) => {
         const target = e.target;
-        const actionableTarget = target.matches('.complete-btn, .undo-btn, .edit-btn, .delete-btn, [data-cat]');
-        if (actionableTarget) e.preventDefault();
         
+        const actionableTarget = target.matches('.complete-btn, .undo-btn, .edit-btn, .delete-btn, [data-cat]');
+        if (actionableTarget) {
+            e.preventDefault();
+        }
+
+        // Marcar tarea como TERMINADA
         if (target.matches('.complete-btn')) await updateTaskStatus(target.dataset.id, 'terminada');
+        
+        // Marcar tarea como EN CURSO (Deshacer)
         if (target.matches('.undo-btn')) await updateTaskStatus(target.dataset.id, 'en curso');
+        
+        // Editar Paciente
         if (target.matches('.edit-btn')) renderView('editarPaciente', { id: target.dataset.id });
+
+        // Eliminar Paciente
         if (target.matches('.delete-btn')) {
             if (confirm('¿Seguro que quieres eliminar este paciente?')) {
                 await fetch(`/api/pacientes/${target.dataset.id}`, { method: 'DELETE', credentials: 'same-origin' });
                 renderView('pacientes');
             }
         }
+        
+        // Ver tareas por Categoría
         if (target.matches('[data-cat]')) fetchTareasPorCategoria(target.dataset.cat);
     });
 
+    // Un solo listener para todos los envíos de formularios
     mainContent.addEventListener('submit', async (e) => {
         e.preventDefault();
         const form = e.target;
         const data = Object.fromEntries(new FormData(form).entries());
 
+        // Formulario de Tareas
         if (form.id === 'form-tarea') {
             await fetch('/api/tareas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data), credentials: 'same-origin' });
             alert('Tarea guardada');
             renderView('pendientes');
         }
+
+        // Formulario de Pacientes (tanto para crear como para editar)
         if (form.id === 'paciente-form') {
             const id = form.dataset.id;
             const url = id ? `/api/pacientes/${id}` : '/api/pacientes';
@@ -72,52 +93,69 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // --- FUNCIONES DE LÓGICA ---
-    const updateTaskStatus = async (id, estado) => {
-        await fetch(`/api/tareas/${id}/estado`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ estado }), credentials: 'same-origin' });
+    async function updateTaskStatus(id, estado) {
+        await fetch(`/api/tareas/${id}/estado`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ estado }),
+            credentials: 'same-origin' // Incluir credenciales
+        });
         renderTareasPendientes();
-    };
+    }
 
-    // --- FUNCIONES PARA DIBUJAR VISTAS ---
+    // --- FUNCIONES QUE DIBUJAN CADA VISTA ---
+
     async function renderCalendar() {
-        mainContent.innerHTML = `<div id="calendar">Cargando...</div>`;
+        mainContent.innerHTML = `<div id="calendar">Cargando calendario...</div>`;
         const calendarEl = document.getElementById('calendar');
         try {
             const response = await fetch('/api/tareas/all', { credentials: 'same-origin' });
             const { data } = await response.json();
-            const events = data.map(t => ({ id: t.id, title: `(${t.categoria}) ${t.descripcion}`, start: t.fecha_creacion, color: t.estado === 'terminada' ? '#198754' : '#0d6efd' }));
+            const events = data.map(tarea => ({
+                id: tarea.id,
+                title: `(${tarea.categoria}) ${tarea.descripcion}`,
+                start: tarea.fecha_creacion,
+                color: tarea.estado === 'terminada' ? '#198754' : '#0d6efd',
+                extendedProps: { ...tarea }
+            }));
             
             calendar = new FullCalendar.Calendar(calendarEl, {
-                initialView: 'dayGridMonth', locale: 'es', height: 'auto', events: events,
+                initialView: 'dayGridMonth',
+                locale: 'es',
+                height: 'auto',
+                events: events,
                 dateClick: (info) => {
-                    const tasksOfDay = events.filter(e => e.start.startsWith(info.dateStr));
+                    const tasksOfDay = events.filter(event => event.start.startsWith(info.dateStr));
                     document.getElementById('modal-title').textContent = `Tareas del ${info.dateStr}`;
                     document.getElementById('modal-body').innerHTML = tasksOfDay.length ? 
-                        '<ul class="list-group">' + tasksOfDay.map(e => `<li class="list-group-item">${e.title}</li>`).join('') + '</ul>' :
+                        '<ul class="list-group">' + tasksOfDay.map(e => `<li class="list-group-item ${e.extendedProps.estado === 'terminada' ? 'text-decoration-line-through' : ''}">${e.title}</li>`).join('') + '</ul>' :
                         '<p>No hay tareas registradas en esta fecha.</p>';
                     dayTasksModal.show();
                 }
             });
             calendar.render();
-        } catch (error) { mainContent.innerHTML = `<h2>Error al cargar el calendario</h2>`; }
+        } catch (error) { mainContent.innerHTML = `<h2>Error al cargar el calendario</h2><p>Asegúrate de haber iniciado sesión correctamente.</p>`; }
     }
 
     async function renderTareasPendientes() {
-        mainContent.innerHTML = `<h2>Tareas del Día y Pendientes</h2><p>Cargando...</p>`;
+        mainContent.innerHTML = '<h2>Tareas del Día y Pendientes</h2><p>Cargando...</p>';
         try {
             const res = await fetch('/api/tareas/all', { credentials: 'same-origin' });
             const { data } = await res.json();
             const hoy = new Date().toISOString().slice(0, 10);
             const tareasAMostrar = data.filter(t => t.estado === 'en curso' || t.fecha_creacion.startsWith(hoy));
             tareasAMostrar.sort((a, b) => new Date(b.fecha_creacion) - new Date(a.fecha_creacion));
+            
             let content = `<h2>Tareas del Día y Pendientes</h2>`;
-            if (tareasAMostrar.length === 0) content += '<p>¡Excelente! No hay tareas para hoy.</p>';
-            else {
+            if (tareasAMostrar.length === 0) {
+                content += '<p>¡Excelente! No hay tareas para hoy.</p>';
+            } else {
                 content += `<div class="item-list">${tareasAMostrar.map(t => {
                     const isTerminada = t.estado === 'terminada';
                     return `<div class="list-item ${isTerminada ? 'terminada' : 'en-curso'}">
                         <div><strong>${t.descripcion}</strong><br><small><b>Paciente:</b> ${t.paciente_nombre || 'N/A'}</small></div>
                         <div class="item-actions">
-                            ${isTerminada ? `<button class="btn btn-sm btn-warning undo-btn" data-id="${t.id}">↺</button>` : `<button class="btn btn-sm btn-success complete-btn" data-id="${t.id}">✔</button>`}
+                            ${isTerminada ? `<button class="btn btn-sm btn-warning undo-btn" data-id="${t.id}">↺ Deshacer</button>` : `<button class="btn btn-sm btn-success complete-btn" data-id="${t.id}">✔ Terminar</button>`}
                         </div>
                     </div>`;
                 }).join('')}</div>`;
