@@ -184,7 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
                           <div class="item-actions">
                             ${isTerminada
                                 ? `<button class="btn btn-sm btn-warning undo-btn" data-id="${t.id}">↺ Deshacer</button>`
-                                : `<button class="btn btn-sm btn-success complete-btn" data-id="${t.id}">✔ Terminar</button>`
+                                : `<button class="btn btn-sm btn-success text-dark complete-btn" data-id="${t.id}">✔ Terminar</button>`
                             }
                           </div>
                         </div>
