@@ -1,5 +1,6 @@
 // 1. Importaciones
 const express = require('express');
+const basicAuth = require('express-basic-auth');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 
@@ -10,6 +11,17 @@ const PORT = 3000;
 // 3. Middlewares
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+/////////////SEGURIDAD/////////////
+app.use('/api', basicAuth({
+    authorizer: (username, password) => {
+        const userMatches = basicAuth.safeCompare(username, process.env.ADMIN_USERNAME || 'admin');
+        const passwordMatches = basicAuth.safeCompare(password, process.env.ADMIN_PASSWORD || 'password');
+        return userMatches && passwordMatches;
+    },
+    challenge: true,
+    realm: 'ControlHApp',
+}));
 
 // 4. Base de Datos (NUEVA ESTRUCTURA)
 const dbPath = path.join(__dirname, 'controlh.db');

@@ -120,46 +120,33 @@ button[type="submit"] {
     border-radius: 4px;
     cursor: pointer;
 }
-/* --- Media Queries para Diseño Responsivo --- */
+.mobile-header {
+    background-color: var(--dark-color);
+    color: white;
+    padding: 10px 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
 
-@media (max-width: 768px) {
-    .app-container {
-        /* Cambia la dirección del flexbox a columna para que la barra lateral se ponga arriba */
-        flex-direction: column;
-        height: auto; /* La altura ya no es fija a la pantalla */
-    }
+.mobile-header h1 {
+    margin: 0 0 10px;
+    font-size: 1.5em;
+}
 
-    .sidebar {
-        width: 100%; /* La barra lateral ahora ocupa todo el ancho */
-        height: auto; /* La altura se ajusta al contenido */
-        padding: 10px;
-        flex-direction: row; /* Hacemos que su contenido se alinee en fila */
-        justify-content: space-between; /* Espaciamos el logo y los botones */
-        align-items: center;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* Sombra inferior */
-    }
+.mobile-nav {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
 
-    .sidebar header {
-        margin-bottom: 0;
-        flex-grow: 1; /* El header toma el espacio sobrante */
-    }
-
-    .sidebar nav {
-        flex-direction: row; /* Los botones se ponen en fila */
-        gap: 8px;
-    }
-    
-    .sidebar nav button {
-        padding: 8px 10px; /* Hacemos los botones un poco más compactos */
-        font-size: 0.9em;
-    }
-
-    .main-content {
-        padding: 15px; /* Reducimos el padding en móviles */
-    }
-
-    /* Ajustamos los botones de categoría para que no se desborden */
-    .d-flex.flex-wrap.gap-2 {
-        justify-content: center;
-    }
+.mobile-nav button {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 10px 14px;
+    border-radius: 5px;
+    font-size: 0.9em;
+    cursor: pointer;
 }
